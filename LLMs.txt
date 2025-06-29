@@ -1,0 +1,207 @@
+# MCP Gateway - LLM Development Guidelines
+
+## Project Overview
+
+**MCP Gateway** is a production-grade Model Context Protocol (MCP) gateway, proxy, and registry that federates MCP and REST services. It provides a unified endpoint for AI clients with features like discovery, authentication, rate-limiting, observability, virtual servers, and multi-transport protocols.
+
+## Key Architecture Components
+
+### Core Services
+- **Tool Service**: Manages MCP tools with validation and invocation
+- **Resource Service**: Handles URI-based resource access and caching
+- **Prompt Service**: Manages Jinja2 templates with multimodal support
+- **Server Service**: Manages MCP server registration and health checks
+- **Gateway Service**: Handles federation and peer gateway communication
+- **Completion Service**: Processes MCP completion requests
+- **Logging Service**: Structured logging with configurable levels
+
+### Transport Layer
+- **HTTP/JSON-RPC**: Standard REST API endpoints
+- **WebSocket**: Real-time bidirectional communication
+- **Server-Sent Events (SSE)**: Streaming updates
+- **Stdio**: Command-line interface support
+- **Streamable HTTP**: Custom transport for MCP protocol
+
+### Data Layer
+- **SQLAlchemy ORM**: Database abstraction with async support
+- **Resource Cache**: In-memory or Redis-backed caching
+- **Session Registry**: Manages active client sessions
+- **Federation**: Multi-gateway synchronization
+
+## Development Guidelines
+
+### Code Style & Standards
+
+1. **Python Version**: Target Python 3.10+ (3.11 recommended)
+2. **Type Hints**: Use comprehensive type annotations throughout
+3. **Async/Await**: Prefer async patterns for I/O operations
+4. **Error Handling**: Use custom exception classes with meaningful messages
+5. **Documentation**: Include docstrings for all public functions and classes
+
+### File Structure Conventions
+
+```
+mcpgateway/
+├── services/          # Business logic services
+├── transports/        # Protocol transport implementations
+├── cache/            # Caching and session management
+├── federation/       # Multi-gateway federation
+├── handlers/         # Request/response handlers
+├── utils/            # Utility functions and helpers
+├── validation/       # Request validation and schemas
+├── templates/        # Jinja2 templates for UI
+├── static/           # Static assets (CSS, JS)
+└── main.py           # FastAPI application entry point
+```
+
+### API Design Principles
+
+1. **RESTful Endpoints**: Follow REST conventions for resource management
+2. **JSON-RPC Compliance**: Implement MCP protocol specification
+3. **Authentication**: Support JWT and Basic Auth with configurable requirements
+4. **Rate Limiting**: Implement per-endpoint rate limiting
+5. **Error Responses**: Consistent error format with appropriate HTTP status codes
+
+### Database Patterns
+
+1. **Async ORM**: Use SQLAlchemy async patterns
+2. **Connection Pooling**: Configure appropriate pool sizes
+3. **Migrations**: Use Alembic for schema changes
+4. **Transactions**: Use explicit transaction management
+5. **Query Optimization**: Implement efficient queries with proper indexing
+
+### Caching Strategy
+
+1. **Resource Cache**: Cache frequently accessed resources
+2. **Session Management**: Maintain client session state
+3. **TTL Configuration**: Set appropriate cache expiration times
+4. **Cache Invalidation**: Implement proper cache invalidation strategies
+5. **Backend Options**: Support memory, Redis, and database backends
+
+### Federation Architecture
+
+1. **Peer Discovery**: Auto-discovery via mDNS or manual configuration
+2. **Health Checks**: Regular health monitoring of peer gateways
+3. **Data Synchronization**: Sync registries across federated gateways
+4. **Failover**: Graceful handling of peer gateway failures
+5. **Conflict Resolution**: Handle naming conflicts in federated environments
+
+### Security Considerations
+
+1. **Authentication**: Implement proper authentication mechanisms
+2. **Authorization**: Role-based access control where appropriate
+3. **Input Validation**: Validate all user inputs
+4. **SSL/TLS**: Support secure transport protocols
+5. **Rate Limiting**: Prevent abuse through rate limiting
+6. **CORS**: Configure appropriate CORS policies
+
+### Testing Strategy
+
+1. **Unit Tests**: Test individual components in isolation
+2. **Integration Tests**: Test service interactions
+3. **End-to-End Tests**: Test complete workflows
+4. **Performance Tests**: Test under load conditions
+5. **Security Tests**: Test authentication and authorization
+
+### Configuration Management
+
+1. **Environment Variables**: Use Pydantic for configuration validation
+2. **Default Values**: Provide sensible defaults for all settings
+3. **Validation**: Validate configuration at startup
+4. **Documentation**: Document all configuration options
+5. **Secrets Management**: Handle sensitive configuration securely
+
+### Monitoring & Observability
+
+1. **Structured Logging**: Use JSON logging with configurable levels
+2. **Metrics**: Implement Prometheus-compatible metrics
+3. **Health Checks**: Provide health and readiness endpoints
+4. **Tracing**: Implement distributed tracing where appropriate
+5. **Alerting**: Set up alerts for critical failures
+
+### Deployment Considerations
+
+1. **Containerization**: Provide Docker images for easy deployment
+2. **Kubernetes**: Support Kubernetes deployment patterns
+3. **Environment Variables**: Use environment variables for configuration
+4. **Health Checks**: Implement proper health check endpoints
+5. **Graceful Shutdown**: Handle shutdown signals properly
+
+## Common Patterns
+
+### Service Initialization
+```python
+class MyService:
+    async def initialize(self):
+        # Initialize service resources
+        pass
+    
+    async def shutdown(self):
+        # Clean up resources
+        pass
+```
+
+### Error Handling
+```python
+class ServiceError(Exception):
+    """Base exception for service errors"""
+    pass
+
+class NotFoundError(ServiceError):
+    """Resource not found"""
+    pass
+```
+
+### Database Operations
+```python
+async def get_resource(db: Session, resource_id: int) -> Resource:
+    result = await db.execute(
+        select(Resource).where(Resource.id == resource_id)
+    )
+    return result.scalar_one_or_none()
+```
+
+### Caching
+```python
+async def get_cached_resource(uri: str) -> Optional[ResourceContent]:
+    if cached := resource_cache.get(uri):
+        return cached
+    # Fetch from source and cache
+    content = await fetch_resource(uri)
+    resource_cache.set(uri, content)
+    return content
+```
+
+### Authentication
+```python
+async def require_auth(request: Request) -> str:
+    # Extract and validate authentication
+    # Return authenticated user identifier
+    pass
+```
+
+## Best Practices
+
+1. **Async First**: Prefer async/await patterns for I/O operations
+2. **Type Safety**: Use comprehensive type hints
+3. **Error Handling**: Implement proper error handling and logging
+4. **Configuration**: Use environment variables for configuration
+5. **Testing**: Write comprehensive tests for all functionality
+6. **Documentation**: Maintain up-to-date documentation
+7. **Security**: Follow security best practices
+8. **Performance**: Optimize for performance and scalability
+9. **Monitoring**: Implement proper monitoring and observability
+10. **Deployment**: Support multiple deployment scenarios
+
+## Common Pitfalls to Avoid
+
+1. **Blocking Operations**: Avoid blocking operations in async contexts
+2. **Memory Leaks**: Properly manage resources and connections
+3. **Security Vulnerabilities**: Validate all inputs and handle secrets properly
+4. **Performance Issues**: Use appropriate caching and optimization strategies
+5. **Configuration Errors**: Validate configuration at startup
+6. **Error Propagation**: Don't swallow exceptions, log and handle them properly
+7. **Resource Management**: Ensure proper cleanup of resources
+8. **Testing Gaps**: Don't skip testing critical paths
+9. **Documentation Neglect**: Keep documentation current with code changes
+10. **Deployment Complexity**: Keep deployment simple and repeatable 

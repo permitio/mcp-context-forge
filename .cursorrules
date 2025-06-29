@@ -1,0 +1,260 @@
+# MCP Gateway - Cursor Development Rules
+
+## Project Context
+
+This is the **MCP Gateway** (Model Context Protocol Gateway) - a production-grade gateway, proxy, and registry that federates MCP and REST services. It provides a unified endpoint for AI clients with features like discovery, authentication, rate-limiting, observability, virtual servers, and multi-transport protocols.
+
+## Core Architecture
+
+### Key Components
+- **FastAPI Application**: Main web framework with async support
+- **Service Layer**: Business logic services (Tool, Resource, Prompt, Server, Gateway, etc.)
+- **Transport Layer**: Multiple protocols (HTTP, WebSocket, SSE, stdio, streamable-HTTP)
+- **Data Layer**: SQLAlchemy ORM with async support, caching, federation
+- **Admin UI**: HTMX-based web interface for management
+
+### Technology Stack
+- **Python 3.10+** (3.11 recommended)
+- **FastAPI** for web framework
+- **SQLAlchemy** for database ORM
+- **Pydantic** for data validation
+- **Redis** (optional) for caching
+- **PostgreSQL** (optional) for database
+- **Docker** for containerization
+
+## Development Guidelines
+
+### Code Style & Standards
+
+1. **Type Hints**: Use comprehensive type annotations throughout all code
+2. **Async/Await**: Prefer async patterns for I/O operations
+3. **Docstrings**: Include detailed docstrings for all public functions and classes
+4. **Error Handling**: Use custom exception classes with meaningful messages
+5. **Naming**: Use descriptive names following Python conventions
+
+### File Structure Understanding
+
+```
+mcpgateway/
+├── main.py              # FastAPI app entry point (2147 lines)
+├── config.py            # Pydantic configuration settings
+├── schemas.py           # Pydantic models and schemas
+├── db.py                # Database models and session management
+├── admin.py             # Admin UI routes and handlers
+├── services/            # Business logic services
+│   ├── tool_service.py
+│   ├── resource_service.py
+│   ├── prompt_service.py
+│   ├── server_service.py
+│   ├── gateway_service.py
+│   └── ...
+├── transports/          # Protocol transport implementations
+├── cache/               # Caching and session management
+├── federation/          # Multi-gateway federation
+├── utils/               # Utility functions
+├── validation/          # Request validation
+└── templates/           # Jinja2 templates for UI
+```
+
+### Key Patterns to Follow
+
+#### Service Pattern
+```python
+class MyService:
+    async def initialize(self):
+        """Initialize service resources"""
+        pass
+    
+    async def shutdown(self):
+        """Clean up resources"""
+        pass
+    
+    async def some_operation(self, db: Session, **kwargs):
+        """Perform service operation with proper error handling"""
+        try:
+            # Implementation
+            pass
+        except Exception as e:
+            logger.error(f"Service operation failed: {e}")
+            raise ServiceError(f"Operation failed: {e}")
+```
+
+#### Database Operations
+```python
+async def get_entity(db: Session, entity_id: int) -> Optional[Entity]:
+    """Get entity by ID with proper error handling"""
+    try:
+        result = await db.execute(
+            select(Entity).where(Entity.id == entity_id)
+        )
+        return result.scalar_one_or_none()
+    except Exception as e:
+        logger.error(f"Database query failed: {e}")
+        raise DatabaseError(f"Failed to fetch entity: {e}")
+```
+
+#### API Endpoints
+```python
+@router.get("/{entity_id}", response_model=EntityRead)
+async def get_entity(
+    entity_id: int, 
+    db: Session = Depends(get_db), 
+    user: str = Depends(require_auth)
+) -> EntityRead:
+    """Get entity by ID with authentication"""
+    try:
+        logger.debug(f"User {user} requested entity {entity_id}")
+        return await service.get_entity(db, entity_id)
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ServiceError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### Configuration Management
+
+- Use Pydantic `BaseSettings` for configuration
+- Support environment variables with sensible defaults
+- Validate configuration at startup
+- Document all configuration options
+
+### Authentication & Security
+
+- Support JWT and Basic Auth
+- Implement proper input validation
+- Use rate limiting where appropriate
+- Follow security best practices
+
+### Error Handling
+
+- Use custom exception classes
+- Log errors with appropriate levels
+- Return consistent error responses
+- Don't expose sensitive information in errors
+
+### Testing
+
+- Write unit tests for all services
+- Include integration tests for API endpoints
+- Test error conditions and edge cases
+- Use pytest for testing framework
+
+### Performance Considerations
+
+- Use async/await for I/O operations
+- Implement appropriate caching strategies
+- Optimize database queries
+- Monitor performance metrics
+
+## Common Tasks & Solutions
+
+### Adding a New Service
+
+1. Create service class in `services/` directory
+2. Implement `initialize()` and `shutdown()` methods
+3. Add proper error handling and logging
+4. Create corresponding API endpoints
+5. Add tests for the service
+
+### Adding a New API Endpoint
+
+1. Define Pydantic models in `schemas.py`
+2. Create endpoint function with proper decorators
+3. Add authentication dependency
+4. Implement error handling
+5. Add logging for debugging
+6. Write tests for the endpoint
+
+### Database Schema Changes
+
+1. Update models in `db.py`
+2. Create migration scripts
+3. Update related services
+4. Test with sample data
+5. Update documentation
+
+### Configuration Changes
+
+1. Add new fields to `Settings` class in `config.py`
+2. Provide sensible defaults
+3. Add validation if needed
+4. Update documentation
+5. Test configuration loading
+
+## Debugging & Troubleshooting
+
+### Common Issues
+
+1. **Database Connection Issues**: Check connection strings and pool settings
+2. **Authentication Problems**: Verify JWT tokens and basic auth credentials
+3. **Caching Issues**: Check Redis connection and cache configuration
+4. **Performance Problems**: Monitor database queries and cache hit rates
+5. **Federation Issues**: Check peer gateway connectivity and health
+
+### Logging
+
+- Use structured logging with JSON format
+- Set appropriate log levels
+- Include relevant context in log messages
+- Monitor logs for errors and performance issues
+
+### Health Checks
+
+- Use `/health` endpoint for basic health checks
+- Use `/ready` endpoint for readiness checks
+- Monitor database connectivity
+- Check service dependencies
+
+## Deployment Considerations
+
+### Environment Variables
+
+Key environment variables to configure:
+- `DATABASE_URL`: Database connection string
+- `REDIS_URL`: Redis connection string (optional)
+- `BASIC_AUTH_USER`/`BASIC_AUTH_PASSWORD`: Authentication credentials
+- `JWT_SECRET_KEY`: JWT signing key
+- `LOG_LEVEL`: Logging level
+- `HOST`/`PORT`: Server binding
+
+### Container Deployment
+
+- Use provided Dockerfile
+- Set appropriate environment variables
+- Configure health checks
+- Set resource limits
+- Use proper security practices
+
+### Kubernetes Deployment
+
+- Use provided Helm charts
+- Configure secrets properly
+- Set up ingress rules
+- Monitor with Prometheus/Grafana
+- Use proper resource requests/limits
+
+## Best Practices Summary
+
+1. **Always use type hints** for better code quality and IDE support
+2. **Prefer async/await** for I/O operations
+3. **Implement proper error handling** with custom exceptions
+4. **Use comprehensive logging** for debugging and monitoring
+5. **Write tests** for all new functionality
+6. **Follow security best practices** for authentication and validation
+7. **Document code** with clear docstrings
+8. **Use configuration management** for environment-specific settings
+9. **Monitor performance** and optimize where needed
+10. **Keep dependencies updated** and secure
+
+## Code Review Checklist
+
+- [ ] Type hints are comprehensive
+- [ ] Async/await is used appropriately
+- [ ] Error handling is implemented
+- [ ] Logging is added for debugging
+- [ ] Tests are included
+- [ ] Documentation is updated
+- [ ] Security considerations are addressed
+- [ ] Performance impact is considered
+- [ ] Configuration is properly managed
+- [ ] Code follows project conventions 
